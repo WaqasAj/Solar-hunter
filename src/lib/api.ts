@@ -1,60 +1,47 @@
 // API clients for search and AI services
 import type { SearchResult, AppConfig, Prospect, EvidenceItem, SourceItem, DecisionMakerRole, ScoreBreakdown, ConfidenceLevel } from '../types';
 import { getPriorityFromScore } from '../types';
+import { getGeminiKey, getBraveKey, hasGeminiKey, hasBraveKey } from './keyManager';
 
-// Environment variable access - checks env vars first, then localStorage
+// Environment variable access - uses encrypted key manager
 export function getConfig(): AppConfig {
   return {
-    geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('VITE_GEMINI_API_KEY') || '',
-    braveSearchApiKey: import.meta.env.VITE_BRAVE_SEARCH_API_KEY || localStorage.getItem('VITE_BRAVE_SEARCH_API_KEY') || '',
+    geminiApiKey: getGeminiKey(),
+    braveSearchApiKey: getBraveKey(),
   };
 }
 
-// Store API key securely in localStorage
-export function saveApiKey(key: string, value: string): void {
-  if (value.trim()) {
-    localStorage.setItem(key, value.trim());
-  } else {
-    localStorage.removeItem(key);
-  }
+// Check if search is configured
+export function isSearchConfigured(): boolean {
+  return hasBraveKey();
 }
 
-// Check if a key exists (env var or localStorage)
-export function hasApiKey(key: string): boolean {
-  const envVal = import.meta.env[key as keyof ImportMetaEnv];
-  const localVal = localStorage.getItem(key);
-  return !!(envVal || localVal);
+// Check if AI is configured
+export function isAIConfigured(): boolean {
+  return hasGeminiKey();
+}
+
+// Get config status
+export function getConfigStatus() {
+  return {
+    gemini: hasGeminiKey(),
+    braveSearch: hasBraveKey(),
+  };
 }
 
 // Get masked key for display (shows first 4 and last 4 chars)
-export function getMaskedKey(key: string): string {
-  const val = import.meta.env[key as keyof ImportMetaEnv] || localStorage.getItem(key) || '';
+export function getMaskedKey(type: 'gemini' | 'brave'): string {
+  const val = type === 'gemini' ? getGeminiKey() : getBraveKey();
   if (!val) return '';
   if (val.length <= 8) return '••••••••';
   return val.slice(0, 4) + '••••••••' + val.slice(-4);
-}
-
-export function isSearchConfigured(): boolean {
-  return !!getConfig().braveSearchApiKey;
-}
-
-export function isAIConfigured(): boolean {
-  return !!getConfig().geminiApiKey;
-}
-
-export function getConfigStatus() {
-  const config = getConfig();
-  return {
-    gemini: !!config.geminiApiKey,
-    braveSearch: !!config.braveSearchApiKey,
-  };
 }
 
 // Brave Search API
 export async function searchWeb(query: string, count: number = 10): Promise<SearchResult[]> {
   const config = getConfig();
   if (!config.braveSearchApiKey) {
-    throw new Error('Brave Search API key is not configured. Go to Settings to add your BRAVE_SEARCH_API_KEY.');
+    throw new Error('Search API key is not configured. Go to Settings to add your search API key.');
   }
 
   const response = await fetch(
@@ -70,7 +57,7 @@ export async function searchWeb(query: string, count: number = 10): Promise<Sear
 
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) {
-      throw new Error('Brave Search API key is invalid or expired. Please check your BRAVE_SEARCH_API_KEY.');
+      throw new Error('Search API key is invalid or expired. Please check your key in Settings.');
     }
     if (response.status === 429) {
       throw new Error('Brave Search API rate limit exceeded. Please try again later.');
@@ -136,7 +123,7 @@ export function generateSearchQueries(location: string, industry: string, count:
 async function callGemini(prompt: string, systemInstruction?: string): Promise<string> {
   const config = getConfig();
   if (!config.geminiApiKey) {
-    throw new Error('Gemini AI API key is not configured. Go to Settings to add your GEMINI_API_KEY.');
+    throw new Error('AI API key is not configured. Go to Settings to add your AI API key.');
   }
 
   const body: any = {
@@ -164,7 +151,7 @@ async function callGemini(prompt: string, systemInstruction?: string): Promise<s
 
   if (!response.ok) {
     if (response.status === 400 || response.status === 403) {
-      throw new Error('Gemini API key is invalid. Please check your GEMINI_API_KEY.');
+      throw new Error('AI API key is invalid. Please check your key in Settings.');
     }
     if (response.status === 429) {
       throw new Error('Gemini API rate limit exceeded. Please try again later.');

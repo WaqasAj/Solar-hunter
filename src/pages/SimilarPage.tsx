@@ -18,7 +18,7 @@ export default function SimilarPage() {
     if (!referenceCompany.trim()) return;
 
     if (!isSearchConfigured() || !isAIConfigured()) {
-      setError('Required API keys are not configured. Go to Settings to securely enter your Brave Search and Gemini API keys.');
+      setError('Required API keys are not available. Go to Settings to unlock or add your API keys.');
       return;
     }
 

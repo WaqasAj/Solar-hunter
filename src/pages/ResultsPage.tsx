@@ -26,7 +26,7 @@ export default function ResultsPage() {
     const criteria: SearchCriteria = JSON.parse(criteriaStr);
 
     if (!isSearchConfigured() || !isAIConfigured()) {
-      setError('Required API keys are not configured. Go to Settings to securely enter your Brave Search and Gemini API keys.');
+      setError('Required API keys are not available. Go to Settings to unlock or add your API keys.');
       return;
     }
 
@@ -283,7 +283,7 @@ export default function ResultsPage() {
                 onClick={() => navigate('/settings')}
                 className="mt-2 text-sm font-medium text-red-700 underline hover:text-red-900"
               >
-                Check API Configuration →
+                Go to Settings →
               </button>
             </div>
           </div>

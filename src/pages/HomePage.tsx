@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sun, Search, Building2, Zap, Target, TrendingUp } from 'lucide-react';
+import { Sun, Search, Building2, Zap, Target, TrendingUp, Lock } from 'lucide-react';
 import type { SearchCriteria } from '../types';
 import { isSearchConfigured, isAIConfigured, getConfigStatus } from '../lib/api';
+import { hasEncryptedKeys } from '../lib/crypto';
+import { isUnlocked } from '../lib/keyManager';
 
 const INDUSTRIES = [
   'All industries',
@@ -54,6 +56,8 @@ export default function HomePage() {
     };
   }, []);
 
+  const keysExist = hasEncryptedKeys();
+  const keysUnlocked = isUnlocked();
   const needsSearchKey = !configStatus.braveSearch;
   const needsAIKey = !configStatus.gemini;
   const needsConfig = needsSearchKey || needsAIKey;
@@ -89,30 +93,58 @@ export default function HomePage() {
       </div>
 
       {/* Configuration Warning */}
-      {needsConfig && (
+      {!keysExist && (
         <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <h3 className="font-semibold text-amber-800 mb-2">⚙️ API Keys Required</h3>
+          <h3 className="font-semibold text-amber-800 mb-2">⚙️ Initial Setup Required</h3>
           <p className="text-sm text-amber-700 mb-2">
-            To find real prospects, configure the following API keys:
+            To find real prospects, you need to set up your API keys securely.
+          </p>
+          <p className="text-sm text-amber-600 mt-2">
+            Go to{' '}
+            <button onClick={() => navigate('/settings')} className="underline font-medium hover:text-amber-900">Settings</button>
+            {' '}to securely enter and encrypt your API keys with a password.
+          </p>
+        </div>
+      )}
+
+      {keysExist && !keysUnlocked && (
+        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <h3 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
+            <Lock className="w-4 h-4" />
+            Keys Locked
+          </h3>
+          <p className="text-sm text-blue-700">
+            Your API keys are encrypted. Go to{' '}
+            <button onClick={() => navigate('/settings')} className="underline font-medium hover:text-blue-900">Settings</button>
+            {' '}to unlock them with your password.
+          </p>
+        </div>
+      )}
+
+      {keysExist && keysUnlocked && needsConfig && (
+        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <h3 className="font-semibold text-amber-800 mb-2">⚙️ Missing API Keys</h3>
+          <p className="text-sm text-amber-700 mb-2">
+            To find real prospects, you need to add the following API keys:
           </p>
           <ul className="text-sm space-y-1">
             {needsSearchKey && (
               <li className="flex items-center gap-2 text-amber-700">
                 <span className="w-2 h-2 bg-red-400 rounded-full"></span>
-                <strong>Brave Search API</strong> — for finding real businesses via web search
+                <strong>Web Search API</strong> — for finding real businesses
               </li>
             )}
             {needsAIKey && (
               <li className="flex items-center gap-2 text-amber-700">
                 <span className="w-2 h-2 bg-red-400 rounded-full"></span>
-                <strong>Gemini AI API</strong> — for AI-powered company analysis and scoring
+                <strong>AI Analysis API</strong> — for company analysis and scoring
               </li>
             )}
           </ul>
           <p className="text-sm text-amber-600 mt-2">
             Go to{' '}
             <button onClick={() => navigate('/settings')} className="underline font-medium hover:text-amber-900">Settings</button>
-            {' '}to securely enter your API keys. They are stored locally in your browser.
+            {' '}to add the missing keys.
           </p>
         </div>
       )}
