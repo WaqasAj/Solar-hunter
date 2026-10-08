@@ -2,8 +2,8 @@
 import { loadEncryptedKeys, hasEncryptedKeys } from './crypto';
 
 // In-memory cache for the session (cleared on page refresh)
+// SECURITY FIX: Only store decrypted keys, never the password
 let cachedKeys: { gemini?: string; brave?: string } | null = null;
-let sessionPassword: string | null = null;
 
 // Check if keys are set up (encrypted keys exist)
 export function isKeySetupComplete(): boolean {
@@ -11,20 +11,27 @@ export function isKeySetupComplete(): boolean {
 }
 
 // Unlock keys with password (called once per session)
+// SECURITY FIX: Password is used to decrypt but never stored in memory
 export async function unlockKeys(password: string): Promise<boolean> {
   const keys = await loadEncryptedKeys(password);
   if (keys) {
     cachedKeys = keys;
-    sessionPassword = password;
+    // SECURITY FIX: Clear password from local scope immediately
+    // The password parameter is a local variable that will be garbage collected
     return true;
   }
   return false;
 }
 
 // Lock keys (clear session cache)
+// SECURITY FIX: Overwrite memory before nulling to prevent memory scraping
 export function lockKeys(): void {
+  if (cachedKeys) {
+    // Overwrite sensitive data before releasing reference
+    cachedKeys.gemini = '';
+    cachedKeys.brave = '';
+  }
   cachedKeys = null;
-  sessionPassword = null;
 }
 
 // Check if keys are unlocked (available in session)

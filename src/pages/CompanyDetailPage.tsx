@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink, Phone, Mail, MapPin, Factory, Zap, TrendingUp,
 import type { Prospect } from '../types';
 import { getPriorityColor } from '../types';
 import ScoreBadge from '../components/ScoreBadge';
+import { isValidUrl } from '../lib/security';
 
 export default function CompanyDetailPage() {
   const navigate = useNavigate();
@@ -52,7 +53,7 @@ export default function CompanyDetailPage() {
               <p className="mt-3 text-sm text-gray-600">{prospect.description}</p>
             )}
             <div className="mt-4 flex flex-wrap gap-2">
-              {prospect.website && (
+              {prospect.website && isValidUrl(prospect.website) && (
                 <a href={prospect.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200">
                   <ExternalLink className="w-3.5 h-3.5" /> Website
                 </a>
@@ -264,7 +265,7 @@ export default function CompanyDetailPage() {
                   <div>
                     <span className="text-gray-700">{item.claim}</span>
                     <span className="text-gray-400 mx-1">—</span>
-                    {item.sourceUrl ? (
+                    {item.sourceUrl && isValidUrl(item.sourceUrl) ? (
                       <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                         {item.source}
                       </a>
@@ -286,16 +287,18 @@ export default function CompanyDetailPage() {
             </h4>
             <div className="space-y-1.5">
               {prospect.sources.map((source, i) => (
-                <a
-                  key={i}
-                  href={source.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-start gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"
-                >
-                  <ExternalLink className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                  <span className="truncate">{source.title || source.url}</span>
-                </a>
+                isValidUrl(source.url) && (
+                  <a
+                    key={i}
+                    href={source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-start gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    <ExternalLink className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                    <span className="truncate">{source.title || source.url}</span>
+                  </a>
+                )
               ))}
             </div>
           </div>

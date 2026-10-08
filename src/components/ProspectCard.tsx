@@ -2,6 +2,7 @@ import type { Prospect } from '../types';
 import { getPriorityColor } from '../types';
 import ScoreBadge from './ScoreBadge';
 import { ExternalLink, MapPin, Factory, Zap, TrendingUp, ChevronRight } from 'lucide-react';
+import { isValidUrl } from '../lib/security';
 
 interface ProspectCardProps {
   prospect: Prospect;
@@ -84,7 +85,7 @@ export default function ProspectCard({ prospect, onResearch, index }: ProspectCa
               Research Company
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
-            {prospect.website && (
+            {prospect.website && isValidUrl(prospect.website) && (
               <a
                 href={prospect.website}
                 target="_blank"

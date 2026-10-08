@@ -1,11 +1,17 @@
 // Session storage for prospect data
 import type { Prospect, SalesFunnelInputs } from '../types';
+import { validateStorageSize } from './security';
 
 const PROSPECTS_KEY = 'solar_hunter_prospects';
 const FUNNEL_KEY = 'solar_hunter_funnel';
 
 export function saveProspects(prospects: Prospect[]): void {
   try {
+    // SECURITY FIX: Validate storage size before saving
+    if (!validateStorageSize(PROSPECTS_KEY, prospects)) {
+      console.warn('Prospect data too large to save');
+      return;
+    }
     localStorage.setItem(PROSPECTS_KEY, JSON.stringify(prospects));
   } catch {
     // Storage full or unavailable
@@ -38,6 +44,11 @@ export function addProspect(prospect: Prospect): void {
 
 export function saveFunnelInputs(inputs: SalesFunnelInputs): void {
   try {
+    // SECURITY FIX: Validate storage size before saving
+    if (!validateStorageSize(FUNNEL_KEY, inputs)) {
+      console.warn('Funnel data too large to save');
+      return;
+    }
     localStorage.setItem(FUNNEL_KEY, JSON.stringify(inputs));
   } catch {
     // ignore

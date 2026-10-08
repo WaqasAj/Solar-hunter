@@ -6,6 +6,7 @@ import { researchCompany, isSearchConfigured, isAIConfigured } from '../lib/api'
 import { addProspect } from '../lib/storage';
 import ScoreBadge from '../components/ScoreBadge';
 import { getPriorityColor } from '../types';
+import { isValidUrl } from '../lib/security';
 
 export default function ResearchPage() {
   const navigate = useNavigate();
@@ -174,9 +175,11 @@ export default function ResearchPage() {
               <h4 className="text-sm font-semibold text-gray-700 mb-2">Sources</h4>
               <div className="space-y-1">
                 {result.sources.map((s, i) => (
-                  <a key={i} href={s.url} target="_blank" rel="noopener noreferrer" className="block text-sm text-blue-600 hover:underline truncate">
-                    {s.title || s.url}
-                  </a>
+                  isValidUrl(s.url) && (
+                    <a key={i} href={s.url} target="_blank" rel="noopener noreferrer" className="block text-sm text-blue-600 hover:underline truncate">
+                      {s.title || s.url}
+                    </a>
+                  )
                 ))}
               </div>
             </div>

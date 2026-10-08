@@ -5,6 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Solar Prospect Hunter - AI-Powered Prospecting for Solar Sales</title>
     <meta name="description" content="Find high-potential solar prospects, understand why they are worth pursuing, and know who to approach." />
+    
+    <!-- SECURITY FIX: Content Security Policy to prevent XSS attacks -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval';
+      style-src 'self' 'unsafe-inline';
+      img-src 'self' data: https:;
+      font-src 'self' data:;
+      connect-src 'self' https://api.search.brave.com https://generativelanguage.googleapis.com;
+      frame-ancestors 'none';
+      base-uri 'self';
+      form-action 'self';
+    " />
+    
+    <!-- SECURITY FIX: Prevent clickjacking -->
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    
+    <!-- SECURITY FIX: Prevent MIME type sniffing -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☀️</text></svg>" />
   </head>
   <body class="bg-gray-50 text-gray-900 antialiased">

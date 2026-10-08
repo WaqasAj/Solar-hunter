@@ -2,6 +2,11 @@
 import type { SearchResult, AppConfig, Prospect, EvidenceItem, SourceItem, DecisionMakerRole, ScoreBreakdown, ConfidenceLevel } from '../types';
 import { getPriorityFromScore } from '../types';
 import { getGeminiKey, getBraveKey, hasGeminiKey, hasBraveKey } from './keyManager';
+import { RateLimiter } from './security';
+
+// SECURITY FIX: Rate limiters to prevent API abuse
+const searchRateLimiter = new RateLimiter(20, 60000); // 20 calls per minute
+const aiRateLimiter = new RateLimiter(10, 60000); // 10 calls per minute
 
 // Environment variable access - uses encrypted key manager
 export function getConfig(): AppConfig {
@@ -39,13 +44,27 @@ export function getMaskedKey(type: 'gemini' | 'brave'): string {
 
 // Brave Search API
 export async function searchWeb(query: string, count: number = 10): Promise<SearchResult[]> {
+  // SECURITY FIX: Validate and sanitize input
+  if (!query || typeof query !== 'string') {
+    throw new Error('Invalid search query');
+  }
+  
+  const sanitizedQuery = query.trim().substring(0, 200);
+  const safeCount = Math.min(Math.max(1, count), 20); // Limit to 1-20 results
+
+  // SECURITY FIX: Check rate limit before making API call
+  if (!searchRateLimiter.canMakeCall()) {
+    const waitTime = searchRateLimiter.getWaitTime();
+    throw new Error(`Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds before trying again.`);
+  }
+
   const config = getConfig();
   if (!config.braveSearchApiKey) {
     throw new Error('Search API key is not configured. Go to Settings to add your search API key.');
   }
 
   const response = await fetch(
-    `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${count}&search_lang=en`,
+    `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(sanitizedQuery)}&count=${safeCount}&search_lang=en`,
     {
       headers: {
         'Accept': 'application/json',
@@ -84,20 +103,22 @@ export async function searchWeb(query: string, count: number = 10): Promise<Sear
 // Generate search queries based on criteria
 export function generateSearchQueries(location: string, industry: string, count: number): string[] {
   const queries: string[] = [];
-  const loc = location.trim();
+  // SECURITY FIX: Sanitize and limit input length
+  const loc = location.trim().substring(0, 100);
+  const sanitizedIndustry = industry.trim().substring(0, 50);
 
-  if (industry && industry !== 'all') {
-    queries.push(`${industry} companies in ${loc}`);
-    queries.push(`${industry} manufacturers ${loc}`);
-    queries.push(`${industry} businesses ${loc} factory`);
+  if (sanitizedIndustry && sanitizedIndustry !== 'all') {
+    queries.push(`${sanitizedIndustry} companies in ${loc}`);
+    queries.push(`${sanitizedIndustry} manufacturers ${loc}`);
+    queries.push(`${sanitizedIndustry} businesses ${loc} factory`);
     if (count >= 20) {
-      queries.push(`${industry} production facility ${loc}`);
-      queries.push(`${industry} plant ${loc}`);
+      queries.push(`${sanitizedIndustry} production facility ${loc}`);
+      queries.push(`${sanitizedIndustry} plant ${loc}`);
     }
     if (count >= 50) {
-      queries.push(`large ${industry.toLowerCase()} company ${loc}`);
-      queries.push(`${industry} industrial ${loc}`);
-      queries.push(`${industry} processing ${loc}`);
+      queries.push(`large ${sanitizedIndustry.toLowerCase()} company ${loc}`);
+      queries.push(`${sanitizedIndustry} industrial ${loc}`);
+      queries.push(`${sanitizedIndustry} processing ${loc}`);
     }
   } else {
     queries.push(`manufacturing companies in ${loc}`);
@@ -121,6 +142,23 @@ export function generateSearchQueries(location: string, industry: string, count:
 
 // Gemini AI API
 async function callGemini(prompt: string, systemInstruction?: string): Promise<string> {
+  // SECURITY FIX: Validate input
+  if (!prompt || typeof prompt !== 'string') {
+    throw new Error('Invalid prompt');
+  }
+  
+  // SECURITY FIX: Limit prompt size to prevent abuse
+  const maxPromptLength = 10000;
+  if (prompt.length > maxPromptLength) {
+    throw new Error(`Prompt too long (max ${maxPromptLength} characters)`);
+  }
+
+  // SECURITY FIX: Check rate limit before making API call
+  if (!aiRateLimiter.canMakeCall()) {
+    const waitTime = aiRateLimiter.getWaitTime();
+    throw new Error(`AI rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds before trying again.`);
+  }
+
   const config = getConfig();
   if (!config.geminiApiKey) {
     throw new Error('AI API key is not configured. Go to Settings to add your AI API key.');
@@ -140,11 +178,16 @@ async function callGemini(prompt: string, systemInstruction?: string): Promise<s
     body.systemInstruction = { parts: [{ text: systemInstruction }] };
   }
 
+  // SECURITY FIX: Pass API key in Authorization header instead of URL
+  // This prevents the key from appearing in browser history, server logs, and referrer headers
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${config.geminiApiKey}`,
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': config.geminiApiKey,
+      },
       body: JSON.stringify(body),
     }
   );
@@ -169,17 +212,28 @@ async function callGemini(prompt: string, systemInstruction?: string): Promise<s
 
 // Extract JSON from AI response
 function extractJSON(text: string): any {
+  let parsed: any;
+  
   // Try to find JSON block
   const jsonMatch = text.match(/```json\s*([\s\S]*?)```/);
   if (jsonMatch) {
-    return JSON.parse(jsonMatch[1].trim());
+    parsed = JSON.parse(jsonMatch[1].trim());
+  } else {
+    // Try to find raw JSON
+    const rawMatch = text.match(/\{[\s\S]*\}/);
+    if (rawMatch) {
+      parsed = JSON.parse(rawMatch[0]);
+    } else {
+      throw new Error('Could not parse AI response as JSON.');
+    }
   }
-  // Try to find raw JSON
-  const rawMatch = text.match(/\{[\s\S]*\}/);
-  if (rawMatch) {
-    return JSON.parse(rawMatch[0]);
+  
+  // SECURITY FIX: Validate parsed data structure
+  if (typeof parsed !== 'object' || parsed === null) {
+    throw new Error('AI response is not a valid object');
   }
-  throw new Error('Could not parse AI response as JSON.');
+  
+  return parsed;
 }
 
 // Analyze a company using AI

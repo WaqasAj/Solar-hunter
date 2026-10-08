@@ -3,6 +3,7 @@ import { Settings as SettingsIcon, CheckCircle2, XCircle, ExternalLink, Eye, Eye
 import { getConfigStatus, getMaskedKey, isSearchConfigured, isAIConfigured } from '../lib/api';
 import { saveEncryptedKeys, loadEncryptedKeys, hasEncryptedKeys, clearEncryptedKeys } from '../lib/crypto';
 import { unlockKeys, lockKeys, isUnlocked } from '../lib/keyManager';
+import { validatePassword } from '../lib/security';
 
 export default function SettingsPage() {
   const [isSetup, setIsSetup] = useState(hasEncryptedKeys());
@@ -76,8 +77,10 @@ export default function SettingsPage() {
       return;
     }
 
-    if (pwd.length < 6) {
-      setSaveError('Password must be at least 6 characters.');
+    // SECURITY FIX: Use stronger password validation
+    const passwordValidation = validatePassword(pwd);
+    if (!passwordValidation.valid) {
+      setSaveError(passwordValidation.message);
       return;
     }
 
