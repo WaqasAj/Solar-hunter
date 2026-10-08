@@ -2,12 +2,36 @@
 import type { SearchResult, AppConfig, Prospect, EvidenceItem, SourceItem, DecisionMakerRole, ScoreBreakdown, ConfidenceLevel } from '../types';
 import { getPriorityFromScore } from '../types';
 
-// Environment variable access
+// Environment variable access - checks env vars first, then localStorage
 export function getConfig(): AppConfig {
   return {
-    geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || '',
-    braveSearchApiKey: import.meta.env.VITE_BRAVE_SEARCH_API_KEY || '',
+    geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('VITE_GEMINI_API_KEY') || '',
+    braveSearchApiKey: import.meta.env.VITE_BRAVE_SEARCH_API_KEY || localStorage.getItem('VITE_BRAVE_SEARCH_API_KEY') || '',
   };
+}
+
+// Store API key securely in localStorage
+export function saveApiKey(key: string, value: string): void {
+  if (value.trim()) {
+    localStorage.setItem(key, value.trim());
+  } else {
+    localStorage.removeItem(key);
+  }
+}
+
+// Check if a key exists (env var or localStorage)
+export function hasApiKey(key: string): boolean {
+  const envVal = import.meta.env[key as keyof ImportMetaEnv];
+  const localVal = localStorage.getItem(key);
+  return !!(envVal || localVal);
+}
+
+// Get masked key for display (shows first 4 and last 4 chars)
+export function getMaskedKey(key: string): string {
+  const val = import.meta.env[key as keyof ImportMetaEnv] || localStorage.getItem(key) || '';
+  if (!val) return '';
+  if (val.length <= 8) return '••••••••';
+  return val.slice(0, 4) + '••••••••' + val.slice(-4);
 }
 
 export function isSearchConfigured(): boolean {
@@ -30,7 +54,7 @@ export function getConfigStatus() {
 export async function searchWeb(query: string, count: number = 10): Promise<SearchResult[]> {
   const config = getConfig();
   if (!config.braveSearchApiKey) {
-    throw new Error('BRAVE_SEARCH_API_KEY is not configured. Add it to your application secrets.');
+    throw new Error('Brave Search API key is not configured. Go to Settings to add your BRAVE_SEARCH_API_KEY.');
   }
 
   const response = await fetch(
@@ -112,7 +136,7 @@ export function generateSearchQueries(location: string, industry: string, count:
 async function callGemini(prompt: string, systemInstruction?: string): Promise<string> {
   const config = getConfig();
   if (!config.geminiApiKey) {
-    throw new Error('GEMINI_API_KEY is not configured. Add it to your application secrets.');
+    throw new Error('Gemini AI API key is not configured. Go to Settings to add your GEMINI_API_KEY.');
   }
 
   const body: any = {

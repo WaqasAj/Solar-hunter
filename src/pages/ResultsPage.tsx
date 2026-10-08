@@ -26,7 +26,7 @@ export default function ResultsPage() {
     const criteria: SearchCriteria = JSON.parse(criteriaStr);
 
     if (!isSearchConfigured() || !isAIConfigured()) {
-      setError('Required API keys are not configured. Please add VITE_BRAVE_SEARCH_API_KEY and VITE_GEMINI_API_KEY to your environment variables.');
+      setError('Required API keys are not configured. Go to Settings to securely enter your Brave Search and Gemini API keys.');
       return;
     }
 

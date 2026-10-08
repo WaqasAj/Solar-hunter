@@ -1,8 +1,45 @@
-import { Settings as SettingsIcon, CheckCircle2, XCircle, ExternalLink } from 'lucide-react';
-import { getConfigStatus } from '../lib/api';
+import { useState, useEffect } from 'react';
+import { Settings as SettingsIcon, CheckCircle2, XCircle, ExternalLink, Eye, EyeOff, Save, Trash2, Shield } from 'lucide-react';
+import { getConfigStatus, saveApiKey, hasApiKey, getMaskedKey } from '../lib/api';
 
 export default function SettingsPage() {
-  const status = getConfigStatus();
+  const [status, setStatus] = useState(getConfigStatus());
+  const [geminiKey, setGeminiKey] = useState('');
+  const [braveKey, setBraveKey] = useState('');
+  const [showGemini, setShowGemini] = useState(false);
+  const [showBrave, setShowBrave] = useState(false);
+  const [saved, setSaved] = useState<{ gemini: boolean; brave: boolean }>({ gemini: false, brave: false });
+
+  useEffect(() => {
+    // Refresh status on mount
+    setStatus(getConfigStatus());
+  }, []);
+
+  const handleSaveGemini = () => {
+    saveApiKey('VITE_GEMINI_API_KEY', geminiKey);
+    setStatus(getConfigStatus());
+    setSaved(prev => ({ ...prev, gemini: true }));
+    setGeminiKey('');
+    setTimeout(() => setSaved(prev => ({ ...prev, gemini: false })), 3000);
+  };
+
+  const handleSaveBrave = () => {
+    saveApiKey('VITE_BRAVE_SEARCH_API_KEY', braveKey);
+    setStatus(getConfigStatus());
+    setSaved(prev => ({ ...prev, brave: true }));
+    setBraveKey('');
+    setTimeout(() => setSaved(prev => ({ ...prev, brave: false })), 3000);
+  };
+
+  const handleClearGemini = () => {
+    localStorage.removeItem('VITE_GEMINI_API_KEY');
+    setStatus(getConfigStatus());
+  };
+
+  const handleClearBrave = () => {
+    localStorage.removeItem('VITE_BRAVE_SEARCH_API_KEY');
+    setStatus(getConfigStatus());
+  };
 
   const apis = [
     {
@@ -11,6 +48,14 @@ export default function SettingsPage() {
       description: 'Used for company analysis, scoring, and generating sales intelligence.',
       configured: status.gemini,
       setupUrl: 'https://aistudio.google.com/apikey',
+      keyValue: geminiKey,
+      setKeyValue: setGeminiKey,
+      showValue: showGemini,
+      setShowValue: setShowGemini,
+      onSave: handleSaveGemini,
+      onClear: handleClearGemini,
+      justSaved: saved.gemini,
+      maskedKey: getMaskedKey('VITE_GEMINI_API_KEY'),
     },
     {
       name: 'Brave Search',
@@ -18,6 +63,14 @@ export default function SettingsPage() {
       description: 'Used for finding real businesses via web search.',
       configured: status.braveSearch,
       setupUrl: 'https://brave.com/search/api/',
+      keyValue: braveKey,
+      setKeyValue: setBraveKey,
+      showValue: showBrave,
+      setShowValue: setShowBrave,
+      onSave: handleSaveBrave,
+      onClear: handleClearBrave,
+      justSaved: saved.brave,
+      maskedKey: getMaskedKey('VITE_BRAVE_SEARCH_API_KEY'),
     },
   ];
 
@@ -29,98 +82,152 @@ export default function SettingsPage() {
           Settings & API Configuration
         </h1>
         <p className="text-gray-500 mt-1">
-          Configure API keys and check the status of external services.
+          Configure API keys securely. Keys are stored locally in your browser and never transmitted to our servers.
         </p>
       </div>
 
-      {/* API Status */}
+      {/* API Keys */}
       <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">API Configuration Status</h2>
-        
-        <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+          <Shield className="w-5 h-5 text-solar-600" />
+          API Keys
+        </h2>
+        <p className="text-sm text-gray-500 mb-6">
+          Enter your API keys below. They are stored securely in your browser's local storage and cannot be viewed once saved. 
+          Keys persist across page refreshes until explicitly cleared.
+        </p>
+
+        <div className="space-y-6">
           {apis.map(api => (
-            <div key={api.envVar} className="flex items-start gap-4 p-4 rounded-xl border border-gray-100 bg-gray-50">
-              <div className="flex-shrink-0 mt-0.5">
-                {api.configured ? (
-                  <CheckCircle2 className="w-6 h-6 text-green-500" />
-                ) : (
-                  <XCircle className="w-6 h-6 text-red-400" />
-                )}
-              </div>
-              <div className="flex-1">
+            <div key={api.envVar} className="border border-gray-200 rounded-xl p-5">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <h3 className="font-semibold text-gray-900">{api.name}</h3>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                     api.configured ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                   }`}>
-                    {api.configured ? 'Configured' : 'Missing'}
+                    {api.configured ? '✓ Configured' : '✕ Not configured'}
                   </span>
                 </div>
-                <p className="text-sm text-gray-500 mt-1">{api.description}</p>
-                <div className="mt-2">
-                  <code className="text-xs bg-gray-200 px-2 py-1 rounded text-gray-700">{api.envVar}</code>
-                </div>
-                {!api.configured && (
-                  <div className="mt-2">
-                    <a
-                      href={api.setupUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
-                    >
-                      Get API key <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </div>
+                {api.configured && (
+                  <button
+                    onClick={api.onClear}
+                    className="text-xs text-red-600 hover:text-red-800 flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Clear
+                  </button>
                 )}
+              </div>
+
+              <p className="text-sm text-gray-500 mb-3">{api.description}</p>
+
+              {/* Current key status */}
+              {api.configured && api.maskedKey && (
+                <div className="mb-3 flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded-lg">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                  <span>Stored key: <code className="font-mono">{api.maskedKey}</code></span>
+                </div>
+              )}
+
+              {/* Input field */}
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type={api.showValue ? 'text' : 'password'}
+                    value={api.keyValue}
+                    onChange={(e) => api.setKeyValue(e.target.value)}
+                    placeholder={api.configured ? 'Enter new key to replace...' : 'Paste your API key here...'}
+                    className="w-full px-4 py-2.5 pr-10 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none font-mono text-sm"
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => api.setShowValue(!api.showValue)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+                    title={api.showValue ? 'Hide' : 'Show'}
+                  >
+                    {api.showValue ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <button
+                  onClick={api.onSave}
+                  disabled={!api.keyValue.trim()}
+                  className="px-4 py-2.5 bg-solar-600 text-white text-sm font-medium rounded-lg hover:bg-solar-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                >
+                  <Save className="w-4 h-4" />
+                  Save
+                </button>
+              </div>
+
+              {/* Success message */}
+              {api.justSaved && (
+                <div className="mt-2 flex items-center gap-1.5 text-sm text-green-600">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Key saved successfully. It will persist until cleared or browser data is wiped.
+                </div>
+              )}
+
+              {/* Get key link */}
+              <div className="mt-3">
+                <a
+                  href={api.setupUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                >
+                  Get API key <ExternalLink className="w-3 h-3" />
+                </a>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Setup Instructions */}
+      {/* Security Info */}
       <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">How to Configure API Keys</h2>
-        
-        <div className="space-y-4 text-sm text-gray-600">
-          <div>
-            <h3 className="font-medium text-gray-900 mb-1">Option 1: Environment Variables</h3>
-            <p>Set environment variables before building the application:</p>
-            <pre className="mt-2 bg-gray-900 text-green-400 p-3 rounded-lg text-xs overflow-x-auto">
-{`VITE_GEMINI_API_KEY=your_gemini_key_here
-VITE_BRAVE_SEARCH_API_KEY=your_brave_key_here`}
-            </pre>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Shield className="w-5 h-5 text-solar-600" />
+          Security & Storage
+        </h2>
+        <div className="space-y-3 text-sm text-gray-600">
+          <div className="flex items-start gap-2">
+            <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+            <p>API keys are stored in your browser's <strong>localStorage</strong> — they never leave your device.</p>
           </div>
-
-          <div>
-            <h3 className="font-medium text-gray-900 mb-1">Option 2: .env File</h3>
-            <p>Create a <code className="bg-gray-100 px-1 rounded">.env</code> file in the project root:</p>
-            <pre className="mt-2 bg-gray-900 text-green-400 p-3 rounded-lg text-xs overflow-x-auto">
-{`# .env file
-VITE_GEMINI_API_KEY=AIza...
-VITE_BRAVE_SEARCH_API_KEY=BSA...`}
-            </pre>
+          <div className="flex items-start gap-2">
+            <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+            <p>Keys are masked after saving and <strong>cannot be viewed</strong> in plain text once stored.</p>
           </div>
-
-          <div>
-            <h3 className="font-medium text-gray-900 mb-1">Option 3: Google AI Studio Secrets</h3>
-            <p>If deploying via Google AI Studio, add the keys in the Secrets panel:</p>
-            <ul className="list-disc list-inside mt-1 space-y-1">
-              <li>Go to your app's Secrets section</li>
-              <li>Add <code className="bg-gray-100 px-1 rounded">VITE_GEMINI_API_KEY</code></li>
-              <li>Add <code className="bg-gray-100 px-1 rounded">VITE_BRAVE_SEARCH_API_KEY</code></li>
-            </ul>
+          <div className="flex items-start gap-2">
+            <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+            <p>Keys <strong>persist across page refreshes</strong> and browser sessions until explicitly cleared.</p>
+          </div>
+          <div className="flex items-start gap-2">
+            <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+            <p>You can also set keys via environment variables (<code className="bg-gray-100 px-1 rounded">VITE_GEMINI_API_KEY</code>, <code className="bg-gray-100 px-1 rounded">VITE_BRAVE_SEARCH_API_KEY</code>) at build time.</p>
+          </div>
+          <div className="flex items-start gap-2">
+            <XCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+            <p>Clearing browser data or using incognito mode will remove stored keys.</p>
           </div>
         </div>
       </div>
 
-      {/* Security Notice */}
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-        <h3 className="font-semibold text-amber-800 text-sm mb-1">⚠️ Security Note</h3>
-        <p className="text-sm text-amber-700">
-          API keys are embedded at build time via Vite environment variables. For production use, 
-          consider proxying API calls through a server-side function to keep keys out of client-side code. 
-          Never commit API keys to version control.
+      {/* Environment Variables Reference */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Environment Variables Reference</h2>
+        <p className="text-sm text-gray-500 mb-3">
+          For build-time configuration, create a <code className="bg-gray-100 px-1 rounded">.env</code> file:
+        </p>
+        <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-xs overflow-x-auto">
+{`# .env file (build-time only)
+VITE_GEMINI_API_KEY=your_gemini_key_here
+VITE_BRAVE_SEARCH_API_KEY=your_brave_key_here`}
+        </pre>
+        <p className="text-xs text-gray-400 mt-2">
+          Note: Environment variables are embedded at build time. For runtime configuration, use the secure fields above.
         </p>
       </div>
     </div>

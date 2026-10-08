@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sun, Search, Building2, Zap, Target, TrendingUp } from 'lucide-react';
 import type { SearchCriteria } from '../types';
@@ -34,7 +34,7 @@ const INDUSTRIES = [
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const configStatus = getConfigStatus();
+  const [configStatus, setConfigStatus] = useState(getConfigStatus());
 
   const [location, setLocation] = useState('');
   const [industry, setIndustry] = useState('All industries');
@@ -42,8 +42,20 @@ export default function HomePage() {
   const [numProspects, setNumProspects] = useState(20);
   const [minScore, setMinScore] = useState(60);
 
-  const needsSearchKey = !isSearchConfigured();
-  const needsAIKey = !isAIConfigured();
+  // Refresh config status when page becomes visible (e.g., returning from Settings)
+  useEffect(() => {
+    const refresh = () => setConfigStatus(getConfigStatus());
+    refresh();
+    window.addEventListener('focus', refresh);
+    window.addEventListener('pageshow', refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('pageshow', refresh);
+    };
+  }, []);
+
+  const needsSearchKey = !configStatus.braveSearch;
+  const needsAIKey = !configStatus.gemini;
   const needsConfig = needsSearchKey || needsAIKey;
 
   const handleSearch = () => {
@@ -79,27 +91,28 @@ export default function HomePage() {
       {/* Configuration Warning */}
       {needsConfig && (
         <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <h3 className="font-semibold text-amber-800 mb-2">⚙️ API Configuration Required</h3>
+          <h3 className="font-semibold text-amber-800 mb-2">⚙️ API Keys Required</h3>
           <p className="text-sm text-amber-700 mb-2">
-            To find real prospects, the following API keys need to be configured:
+            To find real prospects, configure the following API keys:
           </p>
           <ul className="text-sm space-y-1">
             {needsSearchKey && (
               <li className="flex items-center gap-2 text-amber-700">
                 <span className="w-2 h-2 bg-red-400 rounded-full"></span>
-                <strong>BRAVE_SEARCH_API_KEY</strong> — for finding real businesses via web search
+                <strong>Brave Search API</strong> — for finding real businesses via web search
               </li>
             )}
             {needsAIKey && (
               <li className="flex items-center gap-2 text-amber-700">
                 <span className="w-2 h-2 bg-red-400 rounded-full"></span>
-                <strong>GEMINI_API_KEY</strong> — for AI-powered company analysis and scoring
+                <strong>Gemini AI API</strong> — for AI-powered company analysis and scoring
               </li>
             )}
           </ul>
           <p className="text-sm text-amber-600 mt-2">
-            Add these as environment variables (VITE_BRAVE_SEARCH_API_KEY, VITE_GEMINI_API_KEY) or configure in{' '}
-            <button onClick={() => navigate('/settings')} className="underline font-medium hover:text-amber-900">Settings</button>.
+            Go to{' '}
+            <button onClick={() => navigate('/settings')} className="underline font-medium hover:text-amber-900">Settings</button>
+            {' '}to securely enter your API keys. They are stored locally in your browser.
           </p>
         </div>
       )}
@@ -132,15 +145,23 @@ export default function HomePage() {
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Industry
             </label>
-            <select
-              value={industry}
-              onChange={(e) => setIndustry(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-900 focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none transition-shadow"
-            >
-              {INDUSTRIES.map(ind => (
-                <option key={ind} value={ind}>{ind}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={industry}
+                onChange={(e) => setIndustry(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-900 bg-white focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none transition-shadow appearance-none pr-10 cursor-pointer"
+                style={{ appearance: 'menulist', WebkitAppearance: 'menulist' }}
+              >
+                {INDUSTRIES.map(ind => (
+                  <option key={ind} value={ind} className="py-2">{ind}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
             {industry === 'Other' && (
               <input
                 type="text"
