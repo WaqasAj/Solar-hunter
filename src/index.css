@@ -1,1 +1,51 @@
 @import "tailwindcss";
+
+@theme {
+  --color-solar-50: #f0fdf4;
+  --color-solar-100: #dcfce7;
+  --color-solar-200: #bbf7d0;
+  --color-solar-300: #86efac;
+  --color-solar-400: #4ade80;
+  --color-solar-500: #22c55e;
+  --color-solar-600: #16a34a;
+  --color-solar-700: #15803d;
+  --color-solar-800: #166534;
+  --color-solar-900: #14532d;
+  --color-energy-50: #fffbeb;
+  --color-energy-100: #fef3c7;
+  --color-energy-200: #fde68a;
+  --color-energy-300: #fcd34d;
+  --color-energy-400: #fbbf24;
+  --color-energy-500: #f59e0b;
+  --color-energy-600: #d97706;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.score-ring {
+  animation: score-fill 1s ease-out forwards;
+}
+
+@keyframes score-fill {
+  from { stroke-dashoffset: 283; }
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out forwards;
+}
